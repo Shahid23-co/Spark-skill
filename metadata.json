@@ -1,0 +1,6 @@
+{
+  "name": "SkillSpark",
+  "description": "AI-powered skill learning and earning platform for teenagers and beginners to master CapCut editing, Figma graphic designs, coding, and complete micro clients freelance gigs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

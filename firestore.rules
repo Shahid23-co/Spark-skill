@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for global sanitization
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Default deny security net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User collection safety validation
+    function isValidUser(data) {
+      return data.userId is string 
+        && data.userId == request.auth.uid 
+        && data.displayName is string 
+        && data.displayName.size() >= 2 
+        && data.displayName.size() <= 50
+        && data.avatar is string 
+        && data.avatar.size() <= 200
+        && data.skillLevel is string 
+        && (data.skillLevel == 'Novice' || data.skillLevel == 'Spark' || data.skillLevel == 'Master')
+        && data.xp is int 
+        && data.xp >= 0
+        && (data.completedLessons is list && data.completedLessons.size() <= 100)
+        && (data.completedCourses is list && data.completedCourses.size() <= 50)
+        && (data.unlockedAchievements is list && data.unlockedAchievements.size() <= 30)
+        && (data.savedCourses is list && data.savedCourses.size() <= 50)
+        && (data.portfolio is list && data.portfolio.size() <= 30);
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn(); // Users can view other profiles
+      allow list: if isSignedIn(); // Allow searching for rank leaderboard
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'avatar', 'skillLevel', 'xp', 
+          'completedLessons', 'completedCourses', 'unlockedAchievements', 'savedCourses', 'portfolio'
+        ])
+      );
+    }
+
+    // Community feed safety validation
+    function isValidCommunityPost(data) {
+      return data.postId is string 
+        && isValidId(data.postId)
+        && data.authorId is string 
+        && data.authorId == request.auth.uid
+        && data.authorName is string 
+        && data.authorName.size() >= 2 
+        && data.authorName.size() <= 50
+        && data.authorAvatar is string 
+        && data.authorAvatar.size() <= 200
+        && data.imageUrl is string 
+        && data.imageUrl.size() <= 1000
+        && data.caption is string 
+        && data.caption.size() <= 500
+        && data.likesCount is int 
+        && data.likesCount >= 0
+        && data.likedBy is list
+        && data.likedBy.size() <= 1000
+        && data.commentsCount is int 
+        && data.commentsCount >= 0;
+    }
+
+    match /community_feed/{postId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && incoming().authorId == request.auth.uid && isValidCommunityPost(incoming());
+      allow update: if isSignedIn() && (
+        // Case A: Creator edits their caption
+        (existing().authorId == request.auth.uid && isValidCommunityPost(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['caption', 'imageUrl'])) ||
+        // Case B: Social toggle like: anyone can like if they correctly modify the likedBy array and likesCount
+        (isValidCommunityPost(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'likedBy']))
+      );
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    // Gigs/Earn safety validation
+    function isValidGig(data) {
+      return data.gigId is string 
+        && isValidId(data.gigId)
+        && data.title is string 
+        && data.title.size() <= 100
+        && data.description is string 
+        && data.description.size() <= 1000
+        && data.clientName is string 
+        && data.clientName.size() <= 100
+        && data.payment is int 
+        && data.payment >= 0
+        && data.category is string 
+        && data.difficulty is string
+        && (data.status == 'open' || data.status == 'in_progress' || data.status == 'completed');
+    }
+
+    match /gigs/{gigId} {
+      allow get, list: if isSignedIn();
+      // Gigs are typically pre-seeded system objects, hence client create/delete is forbidden
+      allow create, delete: if false;
+      allow update: if isSignedIn() && isValidGig(incoming()) && (
+        // Action A: A user claims an open gig
+        (existing().status == 'open' && incoming().status == 'in_progress' && incoming().assignedTo == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'assignedTo'])) ||
+        // Action B: The assigned user completes the gig
+        (existing().status == 'in_progress' && existing().assignedTo == request.auth.uid && incoming().status == 'completed' && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+      );
+    }
+  }
+}

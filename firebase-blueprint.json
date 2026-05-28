@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User learning progress, XP, category preferences, and achievements.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The unique user ID" },
+        "displayName": { "type": "string", "description": "Username or nickname" },
+        "avatar": { "type": "string", "description": "Selected avatar icon" },
+        "skillLevel": { "type": "string", "description": "Tier like Novice, Spark, Master" },
+        "xp": { "type": "integer", "description": "Total experience points earned" },
+        "completedLessons": { "type": "array", "description": "Array of learned lesson IDs" },
+        "completedCourses": { "type": "array", "description": "Array of course IDs completed" },
+        "unlockedAchievements": { "type": "array", "description": "Unlocked developer/maker ranks" },
+        "savedCourses": { "type": "array", "description": "Saved for offline/future study" },
+        "portfolio": { "type": "array", "description": "Creator designs or clips shared in portfolio" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "skillLevel", "xp"]
+    },
+    "CommunityPost": {
+      "title": "Community Post",
+      "description": "Creative design or video edit shared by a member on the social tab.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Visual artifact URL" },
+        "caption": { "type": "string", "description": "Design concept description" },
+        "likesCount": { "type": "integer" },
+        "likedBy": { "type": "array", "description": "User IDs who liked this post" },
+        "commentsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorId", "authorName", "imageUrl", "caption"]
+    },
+    "Gig": {
+      "title": "Micro Freelance Gig",
+      "description": "Micro-jobs and gigs offered by businesses or simulated clients.",
+      "type": "object",
+      "properties": {
+        "gigId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "clientName": { "type": "string" },
+        "payment": { "type": "integer", "description": "Reward coins" },
+        "category": { "type": "string", "description": "Video Editing, Coding, design, etc" },
+        "difficulty": { "type": "string", "description": "Beginner, Intermediate, Advanced" },
+        "status": { "type": "string", "enum": ["open", "in_progress", "completed"] },
+        "assignedTo": { "type": "string", "description": "Claimer user ID" }
+      },
+      "required": ["gigId", "title", "description", "clientName", "payment", "category", "difficulty", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles with their learning levels, progress, and xp."
+    },
+    "/community_feed/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Creative files shared by students in the social feed."
+    },
+    "/gigs/{gigId}": {
+      "schema": "Gig",
+      "description": "Available freelancing opportunities for teenagers in SkillSpark."
+    }
+  }
+}
